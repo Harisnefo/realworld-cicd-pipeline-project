@@ -1,0 +1,42 @@
+#!/bin/bash
+# Update and install dependencies
+sudo apt update
+sudo apt install openjdk-11-jdk wget -y
+
+# Create directories
+sudo mkdir -p /opt/nexus
+sudo mkdir -p /opt/sonatype-work
+
+# Change to /tmp and download Nexus
+cd /tmp
+NEXUS_URL="https://download.sonatype.com/nexus/3/latest-unix.tar.gz"
+wget $NEXUS_URL -O nexus.tar.gz
+
+# Extract Nexus
+sudo tar -xzvf nexus.tar.gz -C /opt/nexus --strip-components=1
+
+# Set ownership
+sudo chown -R nexus:nexus /opt/nexus
+sudo chown -R nexus:nexus /opt/sonatype-work
+
+# Create systemd service file
+cat <<EOT | sudo tee /etc/systemd/system/nexus.service
+[Unit]
+Description=nexus service
+After=network.target
+
+[Service]
+Type=forking
+User=nexus
+ExecStart=/opt/nexus/bin/nexus start
+ExecStop=/opt/nexus/bin/nexus stop
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOT
+
+# Reload systemd and start Nexus
+sudo systemctl daemon-reload
+sudo systemctl start nexus
+sudo systemctl enable nexus
